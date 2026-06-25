@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
+  
+  # 🪐 Aimake Portal
+  
+  **The digital laboratory and open-source arsenal of Chico.**
+  
+  [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+  [![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+  [![Framer Motion](https://img.shields.io/badge/Framer_Motion-0055FF?style=for-the-badge&logo=framer&logoColor=white)](https://www.framer.com/motion/)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+  [![Vercel](https://img.shields.io/badge/Deployed_on-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/)
 
-## Getting Started
+  [View Live Site](https://aimake.cc) · [Report Bug](https://github.com/chicogong/aimake-portal/issues) · [Arsenal](https://aimake.cc/arsenal)
+</div>
+
+<br />
+
+## ⚡ Overview
+
+**Aimake Portal** is the personal portfolio, engineering blog, and open-source inventory of Chico. It is meticulously crafted to be a high-performance, SEO-optimized, and visually striking digital business card.
+
+It completely distances itself from traditional, bloated portfolio templates, favoring a highly dynamic, "Vercel/Linear" aesthetic that highlights hardcore engineering work—from Realtime Voice AI and Agentic Frameworks to WebRTC infrastructures.
+
+## ✨ Features
+
+- **Linear-style Premium Aesthetic**: Deep dark mode, subtle glassmorphism, animated stripe blobs, and fluid typography.
+- **Dynamic Arsenal Directory**: A structured grid showcasing 60+ open-source infrastructure projects and tools.
+- **Interactive Tech-Stack Matrix**: Framer-motion powered category filtering (e.g., Go, Rust, WebRTC, TypeScript).
+- **Markdown-driven Devlog**: Fully local, highly performant tech blog powered by `react-markdown` and `gray-matter`.
+- **Automatic SEO Engine**: Dynamically generated sitemap (`sitemap.ts`), comprehensive OpenGraph tags, and JSON-LD structured data.
+- **Edge Optimized**: Built on Next.js 15 with Turbopack, fully optimized for Vercel Edge deployments.
+
+## 🛠 Tech Stack
+
+- **Framework**: [Next.js 15](https://nextjs.org/) (App Router)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
+- **Animations**: [Framer Motion](https://www.framer.com/motion/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Content Parsing**: `gray-matter` & `react-markdown`
+- **Analytics**: Vercel Analytics & Speed Insights
+
+## 🚀 Getting Started
 
 First, run the development server:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📝 Writing Devlogs
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The blog is statically generated using local Markdown files. To publish a new post, simply create a `.md` file inside the `content/blog` directory:
 
-## Learn More
+```markdown
+---
+title: "Building Realtime AI Agents"
+date: "2026-06-25"
+description: "Deep dive into WebRTC and LLM low-latency streaming."
+---
 
-To learn more about Next.js, take a look at the following resources:
+Your content goes here...
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The site will automatically parse the frontmatter, render the markdown, and update the sitemap for SEO.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🔗 Links
 
-## Deploy on Vercel
+- **Main Site**: [https://aimake.cc](https://aimake.cc)
+- **Twitter / X**: [@chicogong](https://x.com/chicogong)
+- **GitHub**: [@chicogong](https://github.com/chicogong)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+<div align="center">
+  <i>Built with passion by Chico.</i>
+</div>
