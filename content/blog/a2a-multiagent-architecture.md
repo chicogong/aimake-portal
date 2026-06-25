@@ -37,6 +37,36 @@ When building AI wrappers, most people default to Python. However, for a real-ti
 2. **TRPC Ecosystem**: By leveraging `trpc-go` (Tencent's RPC framework), the server achieves microsecond latency in intra-service communication.
 3. **Memory Safety**: Long-running WebSocket or SSE connections are notorious for memory leaks. Go's garbage collector and strict typing make the `A2AServer` rock solid in production.
 
+### Goroutine Streaming Pattern
+
+Here is a simplified architectural pattern of how the A2A server handles streaming without blocking the main thread:
+
+```go
+func (s *A2AServer) HandleStream(taskID string, ch chan<- []byte) {
+    // 1. Spawns a background worker for the LLM stream
+    go func() {
+        defer close(ch)
+        stream, err := s.llmClient.CreateChatCompletionStream(context.Background(), req)
+        
+        for {
+            response, err := stream.Recv()
+            if errors.Is(err, io.EOF) {
+                break
+            }
+            
+            // 2. Non-blocking channel write to the client
+            select {
+            case ch <- []byte(response.Choices[0].Delta.Content):
+            case <-s.ctx.Done():
+                return // Handle graceful shutdown
+            }
+        }
+    }()
+}
+```
+
+This ensures that even if an agent is generating a massive response, the HTTP worker pool is never starved, and memory footprint remains flat.
+
 ## Deployment & The Future
 
 The entire infrastructure is dockerized and can be deployed with a single `docker run`. 
