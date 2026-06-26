@@ -13,6 +13,7 @@ class PipelineSingleton {
   static async getInstance(progress_callback?: any) {
     if (this.instance === null) {
       this.instance = await pipeline(this.task, this.model, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         progress_callback: (data: any) => {
           // If loaded property exists and equals total, or if it's super fast, it's from cache
           const isFromCache = data.loaded === data.total && data.total > 0;
