@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Mic, Volume2, Sparkles, Loader2, ArrowRight, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useVoiceAI } from '@/hooks/useVoiceAI';
 
 const STORY_SCENES = [
   { 
@@ -40,156 +41,49 @@ const STORY_SCENES = [
 ];
 
 export default function Storybook() {
-  const worker = useRef<Worker | null>(null);
-  const audioContext = useRef<AudioContext | null>(null);
-  const mediaStream = useRef<MediaStream | null>(null);
-  const processor = useRef<ScriptProcessorNode | null>(null);
-  const audioBuffer = useRef<Float32Array>(new Float32Array(0));
-  
-  const [isReady, setIsReady] = useState(false);
-  const [progress, setProgress] = useState('Opening the Magic Book...');
-  const [isRecording, setIsRecording] = useState(false);
-  const [isDecoding, setIsDecoding] = useState(false);
-  
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isMatch, setIsMatch] = useState<boolean | null>(null);
-  const [heardText, setHeardText] = useState('');
-  
   const currentScene = STORY_SCENES[currentIndex];
-  const currentSceneRef = useRef(STORY_SCENES[0]);
-
+  
+  const expectedWordRef = useRef(currentScene.expectedWord);
   useEffect(() => {
-    currentSceneRef.current = currentScene;
+    expectedWordRef.current = currentScene.expectedWord;
   }, [currentScene]);
 
-  const readStory = (text: string) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel(); // Stop previous speech
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.85; 
-      utterance.pitch = 1.1; 
-      window.speechSynthesis.speak(utterance);
-    }
-  };
+  const {
+    isReady,
+    progress,
+    isRecording,
+    isDecoding,
+    isMatch,
+    heardText,
+    startRecording,
+    stopRecording,
+    playWord: readStory,
+    resetState
+  } = useVoiceAI(expectedWordRef);
 
-  const playSuccessSound = () => {
-    const actx = new window.AudioContext();
-    const osc = actx.createOscillator();
-    const gain = actx.createGain();
-    osc.connect(gain);
-    gain.connect(actx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(523.25, actx.currentTime); // C5
-    osc.frequency.exponentialRampToValueAtTime(1046.50, actx.currentTime + 0.3); // C6
-    gain.gain.setValueAtTime(0.5, actx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + 0.5);
-    osc.start();
-    osc.stop(actx.currentTime + 0.5);
-  };
-
+  // Play word automatically when ready
   useEffect(() => {
-    worker.current = new Worker(new URL('../../lib/worker.ts', import.meta.url), {
-      type: 'module'
-    });
-    
-    worker.current.onmessage = (e) => {
-      const { status, data, text, error } = e.data;
-      if (status === 'progress') {
-        if (data.isFromCache) {
-          setProgress(`Waking AI from Cache: ${Math.round((data.progress || 0))}%`);
-        } else {
-          setProgress(`Downloading AI: ${Math.round((data.progress || 0))}%`);
-        }
-      }
-      else if (status === 'ready') {
-        setIsReady(true);
-        setTimeout(() => readStory(STORY_SCENES[0].text), 800); 
-      }
-      else if (status === 'decoding') setIsDecoding(true);
-      else if (status === 'complete') {
-        setIsDecoding(false);
-        setHeardText(text);
-        
-        const cleanText = text.trim().replace(/[^\w\s]/gi, '').toLowerCase();
-        // Check if the expected word is found in the transcribed text
-        if (cleanText.includes(currentSceneRef.current.expectedWord.toLowerCase())) {
-          setIsMatch(true);
-          playSuccessSound();
-          // Automatically read the completed sentence
-          setTimeout(() => readStory(currentSceneRef.current.expectedWord), 500);
-        } else {
-          setIsMatch(false);
-        }
-      } else if (status === 'error') {
-        setIsDecoding(false);
-        console.error("AI Error:", error);
-      }
-    };
-    
-    worker.current.postMessage({ type: 'load' });
-    return () => {
-      worker.current?.terminate();
-      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-    };
-  }, []);
-
-  const startRecording = async () => {
-    try {
-      audioBuffer.current = new Float32Array(0);
-      setIsMatch(null);
-      setHeardText('');
-      
-      mediaStream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioContext.current = new window.AudioContext({ sampleRate: 16000 });
-      
-      const source = audioContext.current.createMediaStreamSource(mediaStream.current);
-      processor.current = audioContext.current.createScriptProcessor(4096, 1, 1);
-      
-      processor.current.onaudioprocess = (e) => {
-        const inputData = e.inputBuffer.getChannelData(0);
-        const newBuffer = new Float32Array(audioBuffer.current.length + inputData.length);
-        newBuffer.set(audioBuffer.current);
-        newBuffer.set(inputData, audioBuffer.current.length);
-        audioBuffer.current = newBuffer;
-      };
-      
-      source.connect(processor.current);
-      processor.current.connect(audioContext.current.destination);
-      setIsRecording(true);
-    } catch (err) {
-      console.error(err);
-      alert('We need microphone access to hear the magic words!');
+    if (isReady) {
+      setTimeout(() => readStory(STORY_SCENES[0].text), 800); 
     }
-  };
+  }, [isReady, readStory]);
 
-  const stopRecording = () => {
-    setIsRecording(false);
-    if (processor.current && audioContext.current) {
-      processor.current.disconnect();
-      audioContext.current.close();
+  // Read success word automatically
+  useEffect(() => {
+    if (isMatch === true) {
+      setTimeout(() => readStory(currentScene.expectedWord), 500);
     }
-    if (mediaStream.current) mediaStream.current.getTracks().forEach(t => t.stop());
-    
-    worker.current?.postMessage({
-      type: 'transcribe',
-      audio: audioBuffer.current,
-      expectedWord: currentSceneRef.current.expectedWord 
-    });
-  };
+  }, [isMatch, currentScene.expectedWord, readStory]);
 
   const nextScene = () => {
+    resetState();
     if (currentIndex === STORY_SCENES.length - 1) {
-      // Reached the end, maybe reset or show end screen. For MVP, loop to 0.
-      setIsMatch(null);
-      setHeardText('');
       setCurrentIndex(0);
       readStory(STORY_SCENES[0].text);
       return;
     }
     
-    setIsMatch(null);
-    setHeardText('');
     const nextIdx = currentIndex + 1;
     setCurrentIndex(nextIdx);
     readStory(STORY_SCENES[nextIdx].text);

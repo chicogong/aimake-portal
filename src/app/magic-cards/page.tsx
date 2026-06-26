@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Mic, Volume2, Sparkles, Loader2, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useVoiceAI } from '@/hooks/useVoiceAI';
 
 const CARDS = [
   { word: 'Dog', spelling: 'd-o-g', emoji: '🐶', theme: 'from-emerald-300 to-teal-500', shadow: 'shadow-teal-500/50' },
@@ -12,141 +13,38 @@ const CARDS = [
 ];
 
 export default function MagicCards() {
-  const worker = useRef<Worker | null>(null);
-  const audioContext = useRef<AudioContext | null>(null);
-  const mediaStream = useRef<MediaStream | null>(null);
-  const processor = useRef<ScriptProcessorNode | null>(null);
-  const audioBuffer = useRef<Float32Array>(new Float32Array(0));
-  
-  const [isReady, setIsReady] = useState(false);
-  const [progress, setProgress] = useState('Initializing AI Core...');
-  const [isRecording, setIsRecording] = useState(false);
-  const [isDecoding, setIsDecoding] = useState(false);
-  
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isMatch, setIsMatch] = useState<boolean | null>(null);
-  const [heardText, setHeardText] = useState('');
-  
   const currentCard = CARDS[currentIndex];
-  const currentCardRef = useRef(CARDS[0]);
-
-  // Sync ref so the worker closure always sees the latest card
+  
+  // Create a ref for the expected word so the AI hook can access it safely
+  const expectedWordRef = useRef(currentCard.word);
   useEffect(() => {
-    currentCardRef.current = currentCard;
+    expectedWordRef.current = currentCard.word;
   }, [currentCard]);
 
-  const playWord = (word: string) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(word);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.85; 
-      utterance.pitch = 1.2; 
-      window.speechSynthesis.speak(utterance);
-    }
-  };
+  // MAGIC: All AI logic is now beautifully abstracted!
+  const {
+    isReady,
+    progress,
+    isRecording,
+    isDecoding,
+    isMatch,
+    heardText,
+    startRecording,
+    stopRecording,
+    playWord,
+    resetState
+  } = useVoiceAI(expectedWordRef);
 
-  const playSuccessSound = () => {
-    const actx = new window.AudioContext();
-    const osc = actx.createOscillator();
-    const gain = actx.createGain();
-    osc.connect(gain);
-    gain.connect(actx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(523.25, actx.currentTime); 
-    osc.frequency.exponentialRampToValueAtTime(1046.50, actx.currentTime + 0.3); 
-    gain.gain.setValueAtTime(0.5, actx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + 0.5);
-    osc.start();
-    osc.stop(actx.currentTime + 0.5);
-  };
-
+  // Play word automatically when ready
   useEffect(() => {
-    worker.current = new Worker(new URL('../../lib/worker.ts', import.meta.url), {
-      type: 'module'
-    });
-    
-    worker.current.onmessage = (e) => {
-      const { status, data, text, error } = e.data;
-      if (status === 'progress') {
-        if (data.isFromCache) {
-          setProgress(`Waking AI from Cache: ${Math.round((data.progress || 0))}%`);
-        } else {
-          setProgress(`Downloading AI: ${Math.round((data.progress || 0))}%`);
-        }
-      }
-      else if (status === 'ready') {
-        setIsReady(true);
-        setTimeout(() => playWord(CARDS[0].word), 800); 
-      }
-      else if (status === 'decoding') setIsDecoding(true);
-      else if (status === 'complete') {
-        setIsDecoding(false);
-        setHeardText(text);
-        
-        const cleanText = text.trim().replace(/[^\w\s]/gi, '').toLowerCase();
-        if (cleanText.includes(currentCardRef.current.word.toLowerCase())) {
-          setIsMatch(true);
-          playSuccessSound();
-        } else {
-          setIsMatch(false);
-        }
-      } else if (status === 'error') {
-        setIsDecoding(false);
-        console.error("AI Error:", error);
-      }
-    };
-    
-    worker.current.postMessage({ type: 'load' });
-    return () => worker.current?.terminate();
-  }, []);
-
-  const startRecording = async () => {
-    try {
-      audioBuffer.current = new Float32Array(0);
-      setIsMatch(null);
-      setHeardText('');
-      
-      mediaStream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioContext.current = new window.AudioContext({ sampleRate: 16000 });
-      
-      const source = audioContext.current.createMediaStreamSource(mediaStream.current);
-      processor.current = audioContext.current.createScriptProcessor(4096, 1, 1);
-      
-      processor.current.onaudioprocess = (e) => {
-        const inputData = e.inputBuffer.getChannelData(0);
-        const newBuffer = new Float32Array(audioBuffer.current.length + inputData.length);
-        newBuffer.set(audioBuffer.current);
-        newBuffer.set(inputData, audioBuffer.current.length);
-        audioBuffer.current = newBuffer;
-      };
-      
-      source.connect(processor.current);
-      processor.current.connect(audioContext.current.destination);
-      setIsRecording(true);
-    } catch (err) {
-      console.error(err);
-      alert('Microphone access is needed for the magic to work!');
+    if (isReady) {
+      setTimeout(() => playWord(CARDS[0].word), 800); 
     }
-  };
-
-  const stopRecording = () => {
-    setIsRecording(false);
-    if (processor.current && audioContext.current) {
-      processor.current.disconnect();
-      audioContext.current.close();
-    }
-    if (mediaStream.current) mediaStream.current.getTracks().forEach(t => t.stop());
-    
-    worker.current?.postMessage({
-      type: 'transcribe',
-      audio: audioBuffer.current,
-      expectedWord: currentCardRef.current.word 
-    });
-  };
+  }, [isReady, playWord]);
 
   const nextCard = () => {
-    setIsMatch(null);
-    setHeardText('');
+    resetState();
     const nextIdx = (currentIndex + 1) % CARDS.length;
     setCurrentIndex(nextIdx);
     playWord(CARDS[nextIdx].word);
